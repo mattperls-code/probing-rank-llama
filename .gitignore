@@ -1,4 +1,6 @@
 venv
 __pycache__
+.DS_Store
 
-activation-data/src/.env
+data/src/.env
+data/output1

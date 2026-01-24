@@ -8,7 +8,7 @@ collection = ir_datasets.load("msmarco-passage/train")
 # subset selection
 
 use_collection_subset = True
-subset_collection_size = 100000
+subset_collection_size = 1000000
 
 # desired collection wide stats
 
