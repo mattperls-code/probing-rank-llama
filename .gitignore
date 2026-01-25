@@ -3,4 +3,4 @@ __pycache__
 .DS_Store
 
 data/src/.env
-data/output1
+data/output

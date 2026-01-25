@@ -18,9 +18,9 @@ layer_size = 4096
 # docs.json: Array { doc_id: string, content: string }
 # qrels.json: Array { query_id: string, rel_doc_ids: string[] }
 ###
-input_path = "../input1"
+input_path = "../input/1"
 
-output_path = "../output1"
+output_path = "../output/1"
 
 def main():
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
@@ -53,7 +53,7 @@ def main():
     os.makedirs(output_path, exist_ok=True)
     
     activation_store = zarr.storage.ZipStore(f"{output_path}/activations.zarr", mode="w")
-    activation_db = zarr.create_array(
+    activation_data = zarr.create_array(
         store=activation_store,
         shape=(len(queries_json), len(docs_json), layer_count, layer_size),
         chunks=(1, 1, 1, layer_size),
@@ -66,12 +66,12 @@ def main():
         overwrite=True
     )
 
-    activation_db.attrs.update({ "model": model_name })
+    activation_data.attrs.update({ "model": model_name })
 
-    feature_store = []
+    feature_data = []
 
     for query_index, query in enumerate(queries_json):
-        feature_store.append([])
+        feature_data.append([])
 
         for doc_index, doc in enumerate(docs_json):
             query_content = query["content"]
@@ -81,17 +81,17 @@ def main():
 
             with torch.no_grad(): model(**inputs)
 
-            for layer_index in range(layer_count): activation_db[query_index, doc_index, layer_index, :] = activations[layer_index]
+            for layer_index in range(layer_count): activation_data[query_index, doc_index, layer_index, :] = activations[layer_index]
 
             features = compute_features(doc_content, query_content)
 
-            feature_store[-1].append(features)
+            feature_data[-1].append(features)
 
             print(f"Processed (q{query_index}, d{doc_index})")
 
     activation_store.close()
 
-    with open(f"{output_path}/features.json", "w") as features_file: json.dump(feature_store, features_file, indent=2)
+    with open(f"{output_path}/features.json", "w") as features_file: json.dump(feature_data, features_file, indent=2)
 
     for hook in hooks: hook.remove()
 
