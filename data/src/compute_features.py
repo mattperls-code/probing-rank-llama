@@ -1,6 +1,7 @@
 import math
 from util import tokenize
 from collection_statistics import collection_doc_count, collection_term_count, collection_doc_freq_table, collection_term_freq_table
+import random
 from typing import Callable
 
 feature_names: set[str] = [
@@ -20,7 +21,8 @@ feature_names: set[str] = [
     "direchlet_ql",                     # query likelihood score with direchlet smoothing
     "jelinek_mercer_ql",                # query likelihood score with jelinek-mercer smoothing
     "kl_wrt_query",                     # kl divergence using query for true distribution and smoothed doc for approx
-    "kl_wrt_doc"                        # kl divergence using doc for true distribution and smoothed query for approx
+    "kl_wrt_doc",                       # kl divergence using doc for true distribution and smoothed query for approx
+    "random_noise"                      # a random sample to detect overfitting
 ]
 
 def num_covered_query_terms(doc_terms: list[str], query_terms: list[str]) -> float:
@@ -170,6 +172,9 @@ def kl_wrt_query(doc_terms: list[str], query_terms: list[str]) -> float:
 def kl_wrt_doc(doc_terms: list[str], query_terms: list[str]) -> float:
     return kl_wrt_query(query_terms, doc_terms)
 
+def random_noise(doc_terms: list[str], query_terms: list[str]) -> float:
+    return random.uniform(-10.0, 10.0)
+
 compute_feature: dict[str, Callable[[list[str], list[str]], float]] = {
     "num_covered_query_terms": num_covered_query_terms,
     "percent_covered_query_terms": percent_covered_query_terms,
@@ -187,7 +192,8 @@ compute_feature: dict[str, Callable[[list[str], list[str]], float]] = {
     "direchlet_ql": direchlet_ql,
     "jelinek_mercer_ql": jelinek_mercer_ql,
     "kl_wrt_query": kl_wrt_query,
-    "kl_wrt_doc": kl_wrt_doc
+    "kl_wrt_doc": kl_wrt_doc,
+    "random_noise": random_noise
 }
 
 def compute_features(doc: str, query: str) -> dict[str, float]:

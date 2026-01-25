@@ -29,7 +29,8 @@ feature_names: set[str] = [
     "direchlet_ql",                     # query likelihood score with direchlet smoothing
     "jelinek_mercer_ql",                # query likelihood score with jelinek-mercer smoothing
     "kl_wrt_query",                     # kl divergence using query for true distribution and smoothed doc for approx
-    "kl_wrt_doc"                        # kl divergence using doc for true distribution and smoothed query for approx
+    "kl_wrt_doc",                       # kl divergence using doc for true distribution and smoothed query for approx
+    "random_noise"                      # a random sample to detect overfitting
 ]
 
 ridge_alpha = 100000.0
