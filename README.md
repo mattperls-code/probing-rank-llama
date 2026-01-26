@@ -2,7 +2,7 @@
 
 An exploration of how classical IR feature signals arise in neural reranking models.
 
-![R Squared Progressions for Several Classical IR Features](experiments/1/analysis/results/all.png)
+![R Squared Progressions for Several Classical IR Features](experiments/2/analysis/results/all.png)
 
 We can begin to understand which classical IR features the learned reranking model borrows from by analyzing how different neurons correlate with a given feature.
 Specifically, we try to predict the value of that feature from the output of some set of neurons, as this demonstrates those neurons have a correlated signal.
