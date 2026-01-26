@@ -12,6 +12,7 @@ model_name = "castorini/rankllama-v1-7b-lora-passage"
 layer_count = 32
 layer_size = 4096
 
+
 # this dir must contain queries.json, docs.json, and qrels.json
 ###
 # queries.json: Array { query_id: string, content: string }
@@ -21,6 +22,13 @@ layer_size = 4096
 input_path = "../input/1"
 
 output_path = "../output/1"
+
+
+# control how many rel/nrel docs each query gets paired with
+
+positive_samples_per_query = 3
+negative_samples_per_query = 15
+
 
 def main():
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)

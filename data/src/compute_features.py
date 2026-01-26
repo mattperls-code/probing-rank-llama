@@ -5,9 +5,12 @@ import random
 from typing import Callable
 
 feature_names: set[str] = [
-    "num_covered_query_terms",          # number of query terms that occur in the doc
-    "percent_covered_query_terms",      # percent of query terms that occur in the doc
+    "covered_query_term_count",         # number of query terms that occur in the doc
+    "covered_query_term_ratio",         # ratio of query terms that occur in the doc
     "doc_len",                          # number of terms in the document
+    "log_doc_len",                      # log of number of terms in the document
+    "inverse_doc_len",                  # inverse of number of terms in the document
+    "inverse_log_doc_len",              # inverse of log of number of terms in the document
     "query_len",                        # number of terms in the query
     "sum_term_count",                   # sum of number of times a query term appears in the doc
     "avg_term_count",                   # avg of number of times a query term appears in the doc
@@ -15,26 +18,39 @@ feature_names: set[str] = [
     "avg_tf",                           # avg of probability a query term appears in the doc
     "sum_idf",                          # sum of log of inverse document frequency of a query term if it appears in the doc
     "avg_idf",                          # avg of log of inverse document frequency of a query term if it appears in the doc
+    "covered_idf_ratio",                # sum of idf of terms in doc and query divided by sum of idf of terms in query
     "sum_tfidf",                        # sum of product of tf and idf of a query term
     "avg_tfidf",                        # avg of product of tf and idf of a query term
     "bm25",                             # bm25 score
+    "log_bm25",                         # log of bm25 score
+    "sqrt_bm25",                        # sqrt of bm25 score
     "direchlet_ql",                     # query likelihood score with direchlet smoothing
     "jelinek_mercer_ql",                # query likelihood score with jelinek-mercer smoothing
     "kl_wrt_query",                     # kl divergence using query for true distribution and smoothed doc for approx
     "kl_wrt_doc",                       # kl divergence using doc for true distribution and smoothed query for approx
-    "random_noise"                      # a random sample to detect overfitting
+    "random_noise_10",                  # a random sample on -10 to 10 to detect overfitting
+    "random_noise_50",                  # a random sample on -50 to 50 to detect overfitting
 ]
 
-def num_covered_query_terms(doc_terms: list[str], query_terms: list[str]) -> float:
+def covered_query_term_count(doc_terms: list[str], query_terms: list[str]) -> float:
     doc_terms_set = set(doc_terms)
 
     return len([ query_term for query_term in query_terms if query_term in doc_terms_set ])
 
-def percent_covered_query_terms(doc_terms: list[str], query_terms: list[str]) -> float:
-    return num_covered_query_terms(doc_terms, query_terms) / len(query_terms)
+def covered_query_term_ratio(doc_terms: list[str], query_terms: list[str]) -> float:
+    return covered_query_term_count(doc_terms, query_terms) / len(query_terms)
 
 def doc_len(doc_terms: list[str], query_terms: list[str]) -> float:
     return len(doc_terms)
+
+def log_doc_len(doc_terms: list[str], query_terms: list[str]) -> float:
+    return math.log(len(doc_terms) + 1)
+
+def inverse_doc_len(doc_terms: list[str], query_terms: list[str]) -> float:
+    return 1 / len(doc_terms)
+
+def inverse_log_doc_len(doc_terms: list[str], query_terms: list[str]) -> float:
+    return 1 / math.log(len(doc_terms) + 1)
 
 def query_len(doc_terms: list[str], query_terms: list[str]) -> float:
     return len(query_terms)
@@ -70,6 +86,9 @@ def sum_idf(doc_terms: list[str], query_terms: list[str]) -> float:
 
 def avg_idf(doc_terms: list[str], query_terms: list[str]) -> float:
     return sum_idf(doc_terms, query_terms) / len(query_terms)
+
+def covered_idf_ratio(doc_terms: list[str], query_terms: list[str]) -> float:
+    return sum_idf(doc_terms, query_terms) / sum_idf(query_terms, query_terms)
 
 def sum_tfidf(doc_terms: list[str], query_terms: list[str]) -> float:
     doc_len = len(doc_terms)
@@ -107,6 +126,12 @@ def bm25(doc_terms: list[str], query_terms: list[str]) -> float:
         score += num / den
 
     return score
+
+def log_bm25(doc_terms: list[str], query_terms: list[str]) -> float:
+    return math.log(bm25(doc_terms, query_terms) + 1)
+
+def sqrt_bm25(doc_terms: list[str], query_terms: list[str]) -> float:
+    return math.sqrt(bm25(doc_terms, query_terms))
 
 def direchlet_ql(doc_terms: list[str], query_terms: list[str]) -> float:
     MU = 1000
@@ -172,28 +197,38 @@ def kl_wrt_query(doc_terms: list[str], query_terms: list[str]) -> float:
 def kl_wrt_doc(doc_terms: list[str], query_terms: list[str]) -> float:
     return kl_wrt_query(query_terms, doc_terms)
 
-def random_noise(doc_terms: list[str], query_terms: list[str]) -> float:
+def random_noise_10(doc_terms: list[str], query_terms: list[str]) -> float:
     return random.uniform(-10.0, 10.0)
 
+def random_noise_50(doc_terms: list[str], query_terms: list[str]) -> float:
+    return random.uniform(-50.0, 50.0)
+
 compute_feature: dict[str, Callable[[list[str], list[str]], float]] = {
-    "num_covered_query_terms": num_covered_query_terms,
-    "percent_covered_query_terms": percent_covered_query_terms,
-    "doc_len": doc_len,
-    "query_len": query_len,
-    "sum_term_count": sum_term_count,
-    "avg_term_count": avg_term_count,
-    "sum_tf": sum_tf,
-    "avg_tf": avg_tf,
-    "sum_idf": sum_idf,
-    "avg_idf": avg_idf,
-    "sum_tfidf": sum_tfidf,
-    "avg_tfidf": avg_tfidf,
-    "bm25": bm25,
-    "direchlet_ql": direchlet_ql,
-    "jelinek_mercer_ql": jelinek_mercer_ql,
-    "kl_wrt_query": kl_wrt_query,
-    "kl_wrt_doc": kl_wrt_doc,
-    "random_noise": random_noise
+    "covered_query_term_count": covered_query_term_count,         # number of query terms that occur in the doc
+    "covered_query_term_ratio": covered_query_term_ratio,         # ratio of query terms that occur in the doc
+    "doc_len": doc_len,                          # number of terms in the document
+    "log_doc_len": log_doc_len,                      # log of number of terms in the document
+    "inverse_doc_len": inverse_doc_len,                  # inverse of number of terms in the document
+    "inverse_log_doc_len": inverse_log_doc_len,              # inverse of log of number of terms in the document
+    "query_len": query_len,                        # number of terms in the query
+    "sum_term_count": sum_term_count,                   # sum of number of times a query term appears in the doc
+    "avg_term_count": avg_term_count,                   # avg of number of times a query term appears in the doc
+    "sum_tf": sum_tf,                           # sum of probability a query term appears in the doc
+    "avg_tf": avg_tf,                           # avg of probability a query term appears in the doc
+    "sum_idf": sum_idf,                          # sum of log of inverse document frequency of a query term if it appears in the doc
+    "avg_idf": avg_idf,                          # avg of log of inverse document frequency of a query term if it appears in the doc
+    "covered_idf_ratio": covered_idf_ratio,                # sum of idf of terms in doc and query divided by sum of idf of terms in query
+    "sum_tfidf": sum_tfidf,                        # sum of product of tf and idf of a query term
+    "avg_tfidf": avg_tfidf,                        # avg of product of tf and idf of a query term
+    "bm25": bm25,                             # bm25 score
+    "log_bm25": log_bm25,                         # log of bm25 score
+    "sqrt_bm25": sqrt_bm25,                        # sqrt of bm25 score
+    "direchlet_ql": direchlet_ql,                     # query likelihood score with direchlet smoothing
+    "jelinek_mercer_ql": jelinek_mercer_ql,                # query likelihood score with jelinek-mercer smoothing
+    "kl_wrt_query": kl_wrt_query,                     # kl divergence using query for true distribution and smoothed doc for approx
+    "kl_wrt_doc": kl_wrt_doc,                       # kl divergence using doc for true distribution and smoothed query for approx
+    "random_noise_10": random_noise_10,                  # a random sample on -10 to 10 to detect overfitting
+    "random_noise_50": random_noise_50,                  # a random sample on -50 to 50 to detect overfitting
 }
 
 def compute_features(doc: str, query: str) -> dict[str, float]:

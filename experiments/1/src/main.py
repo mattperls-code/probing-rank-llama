@@ -13,9 +13,12 @@ data_path = "../../../data/output/1"
 output_path = "../output"
 
 feature_names: set[str] = [
-    "num_covered_query_terms",          # number of query terms that occur in the doc
-    "percent_covered_query_terms",      # percent of query terms that occur in the doc
+    # "covered_query_term_count",         # number of query terms that occur in the doc
+    "covered_query_term_ratio",         # ratio of query terms that occur in the doc
     "doc_len",                          # number of terms in the document
+    "log_doc_len",                      # log of number of terms in the document
+    "inverse_doc_len",                  # inverse of number of terms in the document
+    "inverse_log_doc_len",              # inverse of log of number of terms in the document
     "query_len",                        # number of terms in the query
     # "sum_term_count",                   # sum of number of times a query term appears in the doc
     "avg_term_count",                   # avg of number of times a query term appears in the doc
@@ -23,14 +26,18 @@ feature_names: set[str] = [
     "avg_tf",                           # avg of probability a query term appears in the doc
     # "sum_idf",                          # sum of log of inverse document frequency of a query term if it appears in the doc
     "avg_idf",                          # avg of log of inverse document frequency of a query term if it appears in the doc
+    "covered_idf_ratio",                # sum of idf of terms in doc and query divided by sum of idf of terms in query
     # "sum_tfidf",                        # sum of product of tf and idf of a query term
     "avg_tfidf",                        # avg of product of tf and idf of a query term
     "bm25",                             # bm25 score
+    "log_bm25",                         # log of bm25 score
+    "sqrt_bm25",                        # sqrt of bm25 score
     "direchlet_ql",                     # query likelihood score with direchlet smoothing
     "jelinek_mercer_ql",                # query likelihood score with jelinek-mercer smoothing
     "kl_wrt_query",                     # kl divergence using query for true distribution and smoothed doc for approx
     "kl_wrt_doc",                       # kl divergence using doc for true distribution and smoothed query for approx
-    "random_noise"                      # a random sample to detect overfitting
+    "random_noise_10",                  # a random sample on -10 to 10 to detect overfitting
+    "random_noise_50",                  # a random sample on -50 to 50 to detect overfitting
 ]
 
 ridge_alpha = 100000.0
