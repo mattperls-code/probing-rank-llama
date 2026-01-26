@@ -8,9 +8,9 @@ from sklearn.metrics import r2_score
 import os
 import matplotlib.pyplot as plt
 
-data_path = "../../../data/output/1"
+data_path = "../../data/output"
 
-output_path = "../output"
+output_path = "../results"
 
 feature_names: set[str] = [
     # "covered_query_term_count",         # number of query terms that occur in the doc

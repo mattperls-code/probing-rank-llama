@@ -13,21 +13,14 @@ layer_count = 32
 layer_size = 4096
 
 
-# this dir must contain queries.json, docs.json, and qrels.json
+# this dir must contain queries.json and docs.json
 ###
 # queries.json: Array { query_id: string, content: string }
 # docs.json: Array { doc_id: string, content: string }
-# qrels.json: Array { query_id: string, rel_doc_ids: string[] }
 ###
-input_path = "../input/1"
+input_path = "../input"
 
-output_path = "../output/1"
-
-
-# control how many rel/nrel docs each query gets paired with
-
-positive_samples_per_query = 3
-negative_samples_per_query = 15
+output_path = "../output"
 
 
 def main():

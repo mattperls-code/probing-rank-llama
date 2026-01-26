@@ -1,6 +1,7 @@
 venv
 __pycache__
 .DS_Store
+.env
 
-data/src/.env
-data/output
+activations.zarr
+features.json
