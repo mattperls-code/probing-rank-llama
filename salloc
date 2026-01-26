@@ -1,7 +1,6 @@
 salloc \
-    --partition=gpu \
-    --gres=gpu:v100:1 \
-    --ntasks=1 \
-    --cpus-per-task=4 \
-    --mem=64G \
-    --time=08:00:00
+  --partition=cpu \
+  --ntasks=1 \
+  --cpus-per-task=16 \
+  --mem=128G \
+  --time=08:00:00

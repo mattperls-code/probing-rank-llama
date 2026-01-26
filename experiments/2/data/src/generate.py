@@ -19,7 +19,7 @@ model_name = "castorini/rankllama-v1-7b-lora-passage"
 layer_count = 32
 layer_size = 4096
 
-output_path = "../output"
+output_path = "../output-3k"
 
 def main():
     print("Sampling query-doc pairs")
@@ -49,8 +49,7 @@ def main():
     model = PeftModel.from_pretrained(base_model, model_name, torch_dtype=torch.float16)
     model = model.merge_and_unload()
 
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using Device: {device}")
 
     model.to(device)
