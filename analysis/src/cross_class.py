@@ -13,11 +13,11 @@ if __name__ == "__main__":
     activation_store = LocalStore(f"{data_path}/activations.zarr")
     activation_data = zarr.open(activation_store, mode="r")
 
+    num_pairs, num_layers, num_neurons = activation_data.shape
+
     with open(f"{data_path}/features.json", "r") as features_file: feature_data = json.load(features_file)
 
     print("Retrieved activation and feature data")
-
-    num_pairs, num_layers, num_neurons = activation_data.shape
 
     rel_xs = activation_data[:500, :, :]
     nrel_xs = activation_data[500:, :, :]

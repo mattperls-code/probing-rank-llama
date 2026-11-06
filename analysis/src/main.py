@@ -16,6 +16,8 @@ if __name__ == "__main__":
     activation_store = LocalStore(f"{data_path}/activations.zarr")
     activation_data = zarr.open(activation_store, mode="r")
 
+    num_pairs, num_layers, num_neurons = activation_data.shape
+
     with open(f"{data_path}/features.json", "r") as features_file: feature_data = json.load(features_file)
 
     print("Retrieved activation and feature data")
@@ -25,13 +27,9 @@ if __name__ == "__main__":
     np.random.seed(314159)
     perm = stratified_permutation(feature_data, training_data_split)
 
-    shuffled_activation_data = zarr.zeros_like(activation_data)
-    for new_index, old_index in enumerate(perm): shuffled_activation_data[new_index] = activation_data[old_index]
-    activation_data = shuffled_activation_data
+    activation_data = activation_data[perm, :, :]
 
     feature_data = [ feature_data[index] for index in perm ]
-
-    num_pairs, num_layers, num_neurons = activation_data.shape
 
     training_xs = activation_data[:training_data_split, :, :]
     validation_xs = activation_data[training_data_split:, :, :]

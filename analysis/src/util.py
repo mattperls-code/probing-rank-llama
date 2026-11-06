@@ -95,6 +95,173 @@ def stratified_bootstrap(feature_data: list[dict]):
 
     return bootstrap_indices
 
+ridge_alpha = 10000.0
+logistic_c = 0.01
+
+# compute, per feature and per layer depth, how well a linear probe recovers the feature
+# ridge regression for continuous features, logistic regression for binary features
+# recovery is measured in r^2 for continuous, auc for binary
+def calculate_r2_progressions(num_layers: int, feature_is_binary: dict[str, bool], training_xs, validation_xs, training_y, validation_y, feature_names = feature_names):
+    # store, per layer, a map of feature -> r2/auc value
+    training_r2_maps = []
+    validation_r2_maps = []
+
+    scaler = StandardScaler()
+
+    for layer_index in range(num_layers):
+        training_x = scaler.fit_transform(training_xs[:, layer_index, :])
+        validation_x = scaler.transform(validation_xs[:, layer_index, :])
+
+        training_feature_metrics = {}
+        validation_feature_metrics = {}
+
+        for feature_index, feature_name in enumerate(feature_names):
+            training_y_i = training_y[:, feature_index]
+            validation_y_i = validation_y[:, feature_index]
+
+            if feature_is_binary[feature_name]:
+                try:
+                    # binary target: logistic regression
+                    model = LogisticRegression(
+                        C=logistic_c,
+                        max_iter=200
+                    )
+
+                    model.fit(training_x, training_y_i.astype(int))
+
+                    training_predictions = model.predict_proba(training_x)[:, 1]
+                    validation_predictions = model.predict_proba(validation_x)[:, 1]
+
+                    training_feature_metrics[feature_name] = roc_auc_score(training_y_i, training_predictions)
+                    validation_feature_metrics[feature_name] = roc_auc_score(validation_y_i, validation_predictions)
+                except:
+                    # some splits have no interlabel variance, such as cross class
+
+                    training_feature_metrics[feature_name] = 0
+                    validation_feature_metrics[feature_name] = 0
+
+            else:
+                # continuous target: ridge regression
+                model = Ridge(alpha=ridge_alpha, solver="auto")
+                model.fit(training_x, training_y_i)
+
+                training_predictions = model.predict(training_x)
+                validation_predictions = model.predict(validation_x)
+
+                training_feature_metrics[feature_name] = r2_score(training_y_i, training_predictions)
+                validation_feature_metrics[feature_name] = r2_score(validation_y_i, validation_predictions)
+
+        training_r2_maps.append(training_feature_metrics)
+        validation_r2_maps.append(validation_feature_metrics)
+
+    training_r2_progressions = { feature_name: [] for feature_name in feature_names }
+    validation_r2_progressions = { feature_name: [] for feature_name in feature_names }
+
+    for feature_r2_map in training_r2_maps:
+        for feature_name, r2 in feature_r2_map.items(): training_r2_progressions[feature_name].append(r2)
+
+    for feature_r2_map in validation_r2_maps:
+        for feature_name, r2 in feature_r2_map.items(): validation_r2_progressions[feature_name].append(r2)
+
+    return training_r2_progressions, validation_r2_progressions
+
+# single and combined plots of how r2/auc evolves for each feature across layer depth
+def plot_r2_progressions(output_path: str, split_name: str, feature_r2_progressions: dict[str, list[float]]):
+    os.makedirs(f"{output_path}/{split_name}", exist_ok=True)
+
+    for feature_name, r2_values in feature_r2_progressions.items():
+        plt.plot(range(1, len(r2_values) + 1, 1), r2_values)
+        plt.xlabel("Layer Index")
+        plt.xlim(1, len(r2_values))
+        plt.ylabel("R Squared or AUC")
+        plt.ylim(0.0, 1.0)
+        plt.title(feature_name)
+        plt.grid(True)
+        plt.savefig(f"{output_path}/{split_name}/{feature_name}.png")
+        plt.clf()
+
+    plt.figure(figsize=(16, 10))
+
+    sorted_features = sorted(
+        feature_r2_progressions.items(),
+        key=lambda item: item[1][-1],
+        reverse=True
+    )
+
+    for feature_index, (feature_name, r2_values) in enumerate(sorted_features, start=1):
+        plt.plot(
+            range(1, len(r2_values) + 1, 1),
+            r2_values,
+            marker="o",
+            linewidth=0.5,
+            label=f"{feature_index}: {feature_name}"
+        )
+
+        plt.text(
+            len(r2_values) + 0.5,
+            max(r2_values[-1], 0), # ensures rendering fits in tight layout
+            str(feature_index),
+            fontsize=9,
+            verticalalignment="center",
+            horizontalalignment="center"
+        )
+
+    plt.xlabel("Layer Index")
+    plt.xlim(1, len(r2_values) + 1)
+    plt.ylabel("R Squared or AUC")
+    plt.ylim(0.0, 1.0)
+    plt.title("Several Classical IR Features")
+    plt.grid(True)
+
+    plt.legend(
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        frameon=False
+    )
+    plt.tight_layout()
+
+    plt.savefig(f"{output_path}/{split_name}/all.png")
+    plt.close()
+
+# plots with 95% CI of how r2 evolves for each feature across layer depth
+def plot_r2_progressions_with_ci(output_path: str, split_name: str, feature_r2_progressions_samples: list[dict[str, list[float]]]):
+    os.makedirs(f"{output_path}/{split_name}", exist_ok=True)
+
+    for feature_name in feature_r2_progressions_samples[0]:
+        samples = np.array([
+            sample[feature_name]
+            for sample in feature_r2_progressions_samples
+        ])
+
+        means = np.mean(samples, axis=0)
+        lower = np.percentile(samples, 2.5, axis=0)
+        upper = np.percentile(samples, 97.5, axis=0)
+
+        layers = np.arange(1, len(means) + 1)
+
+        plt.figure(figsize=(10, 6))
+
+        plt.errorbar(
+            layers,
+            means,
+            yerr=[means - lower, upper - means],
+            fmt="-o",
+            markersize=3,
+            capsize=3,
+            linewidth=1.5,
+        )
+
+        plt.xlabel("Layer Index")
+        plt.xlim(1, len(means))
+        plt.ylabel("R Squared or AUC")
+        plt.ylim(0.0, 1.0)
+        plt.title(feature_name)
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        plt.savefig(f"{output_path}/{split_name}/{feature_name}.png")
+        plt.close()
+
 # histograms for distribution of a given feature across relevant, non-relevant, and all pairs
 def plot_distributions(
     feature_name: str,
@@ -134,133 +301,3 @@ def plot_distributions(
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
-
-# single and combined plots of how r2/auc evolves for each feature across layer depth
-def plot_r2_progressions(output_path: str, split_name: str, feature_r2_progressions: dict[str, list[float]]):
-    os.makedirs(f"{output_path}/{split_name}", exist_ok=True)
-
-    for feature_name, r2_values in feature_r2_progressions.items():
-        plt.plot(range(1, len(r2_values) + 1, 1), r2_values)
-        plt.xlabel("Layer Index")
-        plt.xlim(1, len(r2_values))
-        plt.ylabel("R Squared or AUC")
-        plt.ylim(0.0, 1.0)
-        plt.title(feature_name)
-        plt.grid(True)
-        plt.savefig(f"{output_path}/{split_name}/{feature_name}.png")
-        plt.clf()
-
-    sorted_features = sorted(
-        feature_r2_progressions.items(),
-        key=lambda item: item[1][-1],
-        reverse=True
-    )
-
-    plt.clf()
-
-    plt.figure(figsize=(16, 10))
-
-    for feature_index, (feature_name, r2_values) in enumerate(sorted_features, start=1):
-        plt.plot(
-            range(1, len(r2_values) + 1, 1),
-            r2_values,
-            marker="o",
-            linewidth=0.5,
-            label=f"{feature_index}: {feature_name}"
-        )
-
-        plt.text(
-            len(r2_values) + 0.5,
-            max(r2_values[-1], 0), # ensures rendering fits in tight layout
-            str(feature_index),
-            fontsize=9,
-            verticalalignment="center",
-            horizontalalignment="center"
-        )
-
-    plt.xlabel("Layer Index")
-    plt.xlim(1, len(r2_values) + 1)
-    plt.ylabel("R Squared or AUC")
-    plt.ylim(0.0, 1.0)
-    plt.title("Several Classical IR Features")
-    plt.grid(True)
-
-    plt.legend(
-        loc="center left",
-        bbox_to_anchor=(1.02, 0.5),
-        frameon=False
-    )
-    plt.tight_layout()
-
-    plt.savefig(f"{output_path}/{split_name}/all.png")
-    plt.clf()
-
-ridge_alpha = 10000.0
-logistic_c = 0.01
-
-# compute, per feature and per layer depth, how well a linear probe recovers the feature
-# ridge regression for continuous features, logistic regression for binary features
-# recovery is measured in r^2 for continuous, auc for binary
-def calculate_r2_progressions(num_layers: int, feature_is_binary: dict[str, bool], training_xs, validation_xs, training_y, validation_y):
-    # store, per layer, a map of feature -> r2/auc value
-    training_r2_maps = []
-    validation_r2_maps = []
-
-    scaler = StandardScaler()
-
-    for layer_index in range(num_layers):
-        training_x = scaler.fit_transform(training_xs[:, layer_index, :])
-        validation_x = scaler.transform(validation_xs[:, layer_index, :])
-
-        training_feature_metrics = {}
-        validation_feature_metrics = {}
-
-        for i, feature_name in enumerate(feature_names):
-            training_y_i = training_y[:, i]
-            validation_y_i = validation_y[:, i]
-
-            if feature_is_binary[feature_name]:
-                try:
-                    # binary target: logistic regression
-                    model = LogisticRegression(
-                        C=logistic_c,
-                        max_iter=200
-                    )
-
-                    model.fit(training_x, training_y_i.astype(int))
-
-                    training_predictions = model.predict_proba(training_x)[:, 1]
-                    validation_predictions = model.predict_proba(validation_x)[:, 1]
-
-                    training_feature_metrics[feature_name] = roc_auc_score(training_y_i, training_predictions)
-                    validation_feature_metrics[feature_name] = roc_auc_score(validation_y_i, validation_predictions)
-                except:
-                    # some splits have no interlabel variance, such as cross class
-
-                    training_feature_metrics[feature_name] = 0
-                    validation_feature_metrics[feature_name] = 0
-
-            else:
-                # continuous target: ridge regression
-                model = Ridge(alpha=ridge_alpha)
-                model.fit(training_x, training_y_i)
-
-                training_predictions = model.predict(training_x)
-                validation_predictions = model.predict(validation_x)
-
-                training_feature_metrics[feature_name] = r2_score(training_y_i, training_predictions)
-                validation_feature_metrics[feature_name] = r2_score(validation_y_i, validation_predictions)
-
-        training_r2_maps.append(training_feature_metrics)
-        validation_r2_maps.append(validation_feature_metrics)
-
-    training_r2_progressions = { feature_name: [] for feature_name in feature_names }
-    validation_r2_progressions = { feature_name: [] for feature_name in feature_names }
-
-    for feature_r2_map in training_r2_maps:
-        for feature_name, r2 in feature_r2_map.items(): training_r2_progressions[feature_name].append(r2)
-
-    for feature_r2_map in validation_r2_maps:
-        for feature_name, r2 in feature_r2_map.items(): validation_r2_progressions[feature_name].append(r2)
-
-    return training_r2_progressions, validation_r2_progressions
