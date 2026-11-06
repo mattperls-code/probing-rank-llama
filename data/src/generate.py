@@ -21,7 +21,7 @@ layer_size = 4096
 
 output_path = "../output-3k-new"
 
-def main():
+if __name__ == "__main__":
     print("Sampling query-doc pairs")
 
     docs_store = collection.docs_store()
@@ -105,7 +105,7 @@ def main():
 
         inputs = tokenizer(f"query: {query_text}, document: {doc_text}", return_tensors="pt").to(device)
 
-        # TODO: this could be done in parallel with better hooks implementation
+        # TODO: this should be done in parallel. but since im working locally right now mps will OOM (already nearly does)
         with torch.no_grad(): score = model(**inputs).logits.item()
 
         print(score)
@@ -132,5 +132,3 @@ def main():
     with open(f"{output_path}/features.json", "w") as features_file: json.dump(feature_data, features_file, indent=2)
 
     for hook in hooks: hook.remove()
-
-if __name__ == "__main__": main()
