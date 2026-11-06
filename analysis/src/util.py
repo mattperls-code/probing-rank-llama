@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.linear_model import Ridge, LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score, roc_auc_score
+from scipy.stats import pearsonr, spearmanr
 import matplotlib.pyplot as plt
 
 feature_names = [
@@ -148,8 +149,17 @@ def calculate_r2_progressions(num_layers: int, feature_is_binary: dict[str, bool
                 training_predictions = model.predict(training_x)
                 validation_predictions = model.predict(validation_x)
 
+                # r2
                 training_feature_metrics[feature_name] = r2_score(training_y_i, training_predictions)
                 validation_feature_metrics[feature_name] = r2_score(validation_y_i, validation_predictions)
+
+                # pearson
+                # training_feature_metrics[feature_name] = pearsonr(training_y_i, training_predictions)[0]
+                # validation_feature_metrics[feature_name] = pearsonr(validation_y_i, validation_predictions)[0]
+
+                # spearman
+                # training_feature_metrics[feature_name] = spearmanr(training_y_i, training_predictions)[0]
+                # validation_feature_metrics[feature_name] = spearmanr(validation_y_i, validation_predictions)[0]
 
         training_r2_maps.append(training_feature_metrics)
         validation_r2_maps.append(validation_feature_metrics)
